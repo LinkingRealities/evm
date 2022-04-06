@@ -21,6 +21,7 @@ describe('Nesting', async () => {
   const resourceName2 = 'MonkeyResource';
 
   const mintNestData = ethers.utils.hexZeroPad('0xabcd', 8);
+  const emptyData = ethers.utils.hexZeroPad('0x', 0);
 
   beforeEach(async function () {
     const [signersOwner, ...signersAddr] = await ethers.getSigners();
@@ -495,4 +496,137 @@ describe('Nesting', async () => {
         .to.be.revertedWith('RMRKCore: owner query for nonexistent token');
     });
   });
+
+  describe('Transfer', async function () {
+    it('can transfer token', async function () {
+      const tokenId = 1;
+      const newOwner = addrs[2];
+
+      await petMonkey.connect(addrs[1]).doMint(addrs[1].address, tokenId);
+      await petMonkey.connect(addrs[1]).transfer(newOwner.address, tokenId);
+      expect(await petMonkey.ownerOf(tokenId)).to.eql(newOwner.address);
+    });
+
+    it('cannot transfer not owned token', async function () {
+      const tokenId = 1;
+      const newOwner = addrs[2];
+
+      await petMonkey.connect(addrs[1]).doMint(addrs[1].address, tokenId);
+      await expect(petMonkey.connect(addrs[0]).transfer(newOwner.address, tokenId)).to.be.revertedWith(
+        'RMRKCore: Not approved or owner',
+      );
+    });
+
+    it('can transfer token from approved address (not owner)', async function () {
+      const tokenId = 1;
+      const firstOwner = addrs[1];
+      const approved = addrs[2];
+      const newOwner = addrs[3];
+
+      await petMonkey.connect(firstOwner).doMint(firstOwner.address, tokenId);
+      await petMonkey.connect(firstOwner).approve(approved.address, tokenId);
+
+      await petMonkey.connect(firstOwner).transferFrom(firstOwner.address, newOwner.address, tokenId, 0, emptyData);
+      expect(await petMonkey.ownerOf(tokenId)).to.eql(newOwner.address);
+    });
+
+    it('can transfer child token to address and owners are ok', async function () {
+      const newOwner = addrs[2];
+      const {childId, parentId, firstOwner} = await mintTofirstOwner()
+      // There's no restriction to transfer pending children
+      await petMonkey.connect(firstOwner).transferFrom(firstOwner.address, newOwner.address, childId, 0, emptyData);
+
+      // New owner of child
+      expect(await petMonkey.ownerOf(childId)).to.eql(newOwner.address);
+      expect(await petMonkey.rmrkOwnerOf(childId)).to.eql(
+        [ newOwner.address, ethers.BigNumber.from(0), false]);
+
+      // Parent's owner is still firstOwner
+      expect(await ownerChunky.ownerOf(parentId)).to.eql(firstOwner.address);
+      expect(await ownerChunky.rmrkOwnerOf(parentId)).to.eql(
+        [ firstOwner.address, ethers.BigNumber.from(0), false]);
+    });
+
+    // FIXME: not passing
+    it.skip('can transfer child token to address and children are ok', async function () {
+      const newOwner = addrs[2];
+      const {childId, parentId, firstOwner} = await mintTofirstOwner()
+      await petMonkey.connect(firstOwner).transferFrom(firstOwner.address, newOwner.address, childId, 0, emptyData);
+
+      // Former parent has no children
+      const children = await ownerChunky.childrenOf(parentId);
+      expect(children).to.eql([]);
+      const pendingChildren = await ownerChunky.pendingChildrenOf(parentId);
+      expect(pendingChildren).to.eql([]);
+    });
+
+    it('can transfer parent token to address and owners are ok', async function () {
+      const newOwner = addrs[2];
+      const {childId, parentId, firstOwner} = await mintTofirstOwner();
+      await ownerChunky.connect(firstOwner).transferFrom(firstOwner.address, newOwner.address, parentId, 0, emptyData);
+
+      // New owner of parent
+      expect(await ownerChunky.ownerOf(parentId)).to.eql(newOwner.address);
+      expect(await ownerChunky.rmrkOwnerOf(parentId)).to.eql(
+        [ newOwner.address, ethers.BigNumber.from(0), false]);
+
+      // New owner of child
+      expect(await petMonkey.ownerOf(childId)).to.eql(newOwner.address);
+      expect(await petMonkey.rmrkOwnerOf(childId)).to.eql(
+        [ ownerChunky.address, ethers.BigNumber.from(parentId), true]);
+
+    });
+
+    it('can transfer parent token to address and children are ok', async function () {
+      const newOwner = addrs[2];
+      const {childId, parentId, firstOwner} = await mintTofirstOwner();
+      await ownerChunky.connect(firstOwner).transferFrom(firstOwner.address, newOwner.address, parentId, 0, emptyData);
+
+      // Parent still has its children
+      const children = await ownerChunky.pendingChildrenOf(parentId);
+      expect(children).to.eql([
+        [ethers.BigNumber.from(childId), petMonkey.address, 0, ethers.utils.hexZeroPad('0x0', 8)],
+      ]);
+    });
+
+    // FIXME: not passing
+    it.skip('can transfer accepted child to token with same owner', async function () {
+      const newParentId = 12;
+      const {childId, parentId, firstOwner} = await mintTofirstOwner(true);
+
+      await petMonkey.connect(firstOwner).transferFrom(firstOwner.address, firstOwner.address, childId, newParentId, emptyData);
+
+      let children = await ownerChunky.childrenOf(parentId);
+      expect(children).to.eql([]);
+      children = await ownerChunky.childrenOf(newParentId);
+      expect(children).to.eql(
+        [ethers.BigNumber.from(childId), petMonkey.address, 0, ethers.utils.hexZeroPad('0x0', 8)]
+      );
+
+      let pendingChildren = await ownerChunky.pendingChildrenOf(parentId);
+      expect(pendingChildren).to.eql([]);
+      pendingChildren = await ownerChunky.pendingChildrenOf(newParentId);
+      expect(pendingChildren).to.eql([]);
+
+    });
+
+    it.skip('can transfer accepted child to token with different owner', async function () {});
+    it.skip('can transfer pending child to token with same owner', async function () {});
+    it.skip('can transfer pending child to token with different owner', async function () {});
+    it.skip('can transfer parent token to token', async function () {});
+
+  });
+
+  async function mintTofirstOwner(accept: boolean=false): Promise<{childId: number, parentId: number,  firstOwner: any}> {
+    const childId = 1;
+    const parentId = 11;
+    const firstOwner = addrs[1];
+
+    await petMonkey.connect(firstOwner).doMintNest(ownerChunky.address, childId, parentId, mintNestData);
+    if (accept){
+      await ownerChunky.connect(firstOwner).acceptChildFromPending(0, parentId);
+    }
+
+    return {childId, parentId, firstOwner};
+  }
 });
