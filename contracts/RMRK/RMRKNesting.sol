@@ -105,6 +105,30 @@ contract RMRKNesting is Context {
   }
 
   /**
+   * @dev Function designed to be used by other instances of RMRK-Core contracts to update children.
+   * children are directly accepted, caller must make sure it is approved or owner
+   * param1 childTokenAddress is the address of the child contract as an IRMRKCore instance
+   * param2 parentTokenId is the tokenId of the parent token on (this).
+   * param3 childTokenId is the tokenId of the child instance
+   */
+
+  //update for reentrancy
+  function _setChildAccepted(address childTokenAddress, uint parentTokenId, uint childTokenId) internal virtual {
+    IRMRKNestingInternal childTokenContract = IRMRKNestingInternal(childTokenAddress);
+    (address parent, , ) = childTokenContract.rmrkOwnerOf(childTokenId);
+    require(parent == address(this), "Parent-child mismatch");
+    Child memory child = Child({
+       contractAddress: childTokenAddress,
+       tokenId: childTokenId,
+       slotEquipped: 0,
+       partId: 0
+     });
+    _addChildToChildren(child, parentTokenId);
+    // FIXME: Should it also emmit ChildProposed?
+    emit ChildAccepted(parentTokenId);
+  }
+
+  /**
   @dev Sends an instance of Child from the pending children array at index to children array for _tokenId.
   * Updates _emptyIndexes of tokenId to preserve ordering.
   */
