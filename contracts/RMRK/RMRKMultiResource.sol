@@ -200,6 +200,17 @@ contract RMRKMultiResource {
       return _storage.getResource(_id);
   }
 
+  /* function getFullResources(uint256 tokenId) public virtual view returns (IRMRKResourceStorage.Resource[] memory) {
+      bytes16[] memory activeResources = _activeResources[tokenId];
+      uint256 len = activeResources.length;
+      IRMRKResourceStorage.Resource[] memory resources;
+      for (uint i; i<len;) {
+        resources[i] = getResourceObject(_resources[activeResources[i]].resourceAddress, _resources[activeResources[i]].resourceId);
+        unchecked {++i;}
+      }
+      return resources;
+  } */
+
   function getResObjectByIndex(uint256 _tokenId, uint256 _index) public virtual view returns(IRMRKResourceCore.Resource memory resource) {
       bytes16 localResourceId = getActiveResources(_tokenId)[_index];
       Resource memory _resource = _resources[localResourceId];
