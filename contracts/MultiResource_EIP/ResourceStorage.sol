@@ -2,12 +2,9 @@
 
 pragma solidity ^0.8.9;
 
-contract RMRKResourceStorage {
+contract ResourceStorage {
     /**
-    @dev Ancillary RMRK resource storage contract. By default this is expected to be deployed
-    * by an instance of RMRKCore, but can also be deployed in a standalone fashion.
-    * Resources are added to the RMRKCore contract via an (address resourceAddress, bytes8 resourceId)
-    * pair.
+      @dev Ancillary resource storage contract.
     */
 
     struct Resource {
@@ -32,8 +29,7 @@ contract RMRKResourceStorage {
     }
 
     /**
-     * @dev Function to handle adding a resource entry to the storage contract. Callable by the issuer role, which may also
-     * be an instance of the CORE contract, if deployed by the CORE.
+     * @dev Function to handle adding a resource entry to the storage contract.
      * param1 _id is a unique resource identifier.
      * param2 _src is the primary URI of the resource (used for non-base resources)
      * param3 _thumb is the thumbnail URI of the resource

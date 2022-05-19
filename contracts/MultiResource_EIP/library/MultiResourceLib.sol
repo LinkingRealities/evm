@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+
 pragma solidity ^0.8.0;
 
-library RMRKLib {
+library MultiResourceLib {
 
   function removeItemByValue(bytes16[] storage array, bytes16 value) internal {
     bytes16[] memory memArr = array; //Copy array to memory, check for gas savings here
@@ -19,15 +21,6 @@ library RMRKLib {
     require(index < array.length);
     array[index] = array[array.length-1];
     array.pop();
-  }
-
-  // Gas saving iterator
-  function u_inc(uint i) internal pure returns (uint r) {
-    unchecked {
-      assembly {
-        r := add(i, 1)
-      }
-    }
   }
 
   // indexOf, indexOfFromEnd, and contains adapted from Cryptofin-Solidity arrayUtils
@@ -74,6 +67,15 @@ library RMRKLib {
   function contains(bytes8[] memory A, bytes8 a) internal pure returns (bool) {
     (, bool isIn) = indexOf(A, a);
     return isIn;
+  }
+
+  // Gas saving iterator
+  function u_inc(uint i) internal pure returns (uint r) {
+    unchecked {
+      assembly {
+        r := add(i, 1)
+      }
+    }
   }
 
 }

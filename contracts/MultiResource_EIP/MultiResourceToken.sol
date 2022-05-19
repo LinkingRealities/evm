@@ -2,19 +2,18 @@
 
 pragma solidity ^0.8.9;
 
-/* import "./interfaces/IResourceStorage.sol"; */
-import "./interfaces/IMultiResourceReceiver.sol";
-import "./RMRKResourceStorage.sol";
-import "./library/RMRKLib.sol";
-import "./IERCMultiResource.sol";
+import "./interfaces/IResourceStorage.sol";
+import "./interfaces/IMultiResource.sol";
+import "./ResourceStorage.sol";
+import "./library/MultiResourceLib.sol";
 import "./utils/Address.sol";
 import "./utils/Strings.sol";
 import "./utils/Context.sol";
 
-contract ERCMultiResourceToken is Context, IERCMultiResource {
+contract MultiResourceToken is Context, IMultiResource {
 
-  using RMRKLib for uint256;
-  using RMRKLib for bytes16[];
+  using MultiResourceLib for uint256;
+  using MultiResourceLib for bytes16[];
   using Address for address;
   using Strings for uint256;
 
@@ -36,11 +35,6 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   // Mapping from owner to operator approvals
   mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-  struct LocalResource {
-    address resourceAddress;
-    bytes8 resourceId;
-  }
-
   //mapping resourceContract to resource entry
   mapping(bytes16 => LocalResource) private _localResources;
 
@@ -59,8 +53,10 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   //mapping of tokenId to all resources by priority
   mapping(uint256 => bytes16[]) private _pendingResources;
 
-  // AccessControl roles and nest flag constants
-  RMRKResourceStorage public resourceStorage;
+  //Mapping of bytes8 resource ID to tokenEnumeratedResource for tokenURI
+  mapping(bytes8 => bool) private _tokenEnumeratedResource;
+
+  ResourceStorage public resourceStorage;
 
   string private _fallbackURI;
 
@@ -77,7 +73,7 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   constructor(string memory name_, string memory symbol_, string memory resourceName_) {
     _name = name_;
     _symbol = symbol_;
-    resourceStorage = new RMRKResourceStorage(resourceName_);
+    resourceStorage = new ResourceStorage(resourceName_);
   }
 
   ////////////////////////////////////////
@@ -85,9 +81,8 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   ////////////////////////////////////////
 
 
-  function supportsInterface(bytes4 interfaceId) public view returns (bool) {
-      return
-          interfaceId == type(IERCMultiResource).interfaceId;
+  function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
+      return interfaceId == type(IMultiResource).interfaceId;
   }
 
 
@@ -294,8 +289,8 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
       bytes memory data
   ) private returns (bool) {
       if (to.isContract()) {
-          try MultiResourceTokenReceiver(to).onMultiResourceReceived(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
-              return retval == MultiResourceTokenReceiver.onMultiResourceReceived.selector;
+          try IMultiResourceReceiver(to).onMultiResourceReceived(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
+              return retval == IMultiResourceReceiver.onMultiResourceReceived.selector;
           } catch (bytes memory reason) {
               if (reason.length == 0) {
                   revert("MultiResource: transfer to non MultiResource Receiver implementer");
@@ -328,13 +323,13 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   //              RESOURCES
   ////////////////////////////////////////
 
-  function _addResourceEntry(
+  function addResourceEntry(
       bytes8 _id,
       string memory _src,
       string memory _thumb,
       string memory _metadataURI,
       bytes memory _custom
-  ) internal virtual {
+  ) external virtual {
     resourceStorage.addResourceEntry(
       _id,
       _src,
@@ -356,20 +351,17 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
 
       require(
         _tokenResources[_tokenId][localResourceId] == false,
-        "RMRKCore: Resource already exists on token"
+        "MultiResource: Resource already exists on token"
       );
-      //This error code will never be triggered because of the interior call of
-      //resourceStorage.getResource. Left in for posterity.
 
-      //Abstract this out to IResourceStorage
       require(
         resourceStorage.getResource(_resourceId).id != bytes8(0),
-        "RMRKCore: Resource not found in storage"
+        "MultiResource: Resource not found in storage"
       );
 
       require(
         _pendingResources[_tokenId].length < 128,
-        "RMRKCore: Max pending resources reached"
+        "MultiResource: Max pending resources reached"
       );
 
       //Construct Resource object
@@ -418,7 +410,7 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
   function rejectResource(uint256 _tokenId, uint256 index) external {
       require(
         _pendingResources[_tokenId].length > index,
-        "RMRKcore: Pending child index out of range"
+        "MultiResource: Pending child index out of range"
       );
 
       bytes16 _localResourceId = _pendingResources[_tokenId][index];
@@ -432,10 +424,6 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
       delete(_pendingResources[_tokenId]);
       emit ResourceRejected(_tokenId, bytes16(0));
   }
-
-  /*
-    Edits a priority array that maps 1-1 to active resources
-  */
 
   function setPriority(uint256 _tokenId, uint16[] memory _priorities) external {
       uint256 length = _priorities.length;
@@ -460,17 +448,49 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
       return _activeResourcePriorities[tokenId];
   }
 
-  //Deprecate
-  function getRenderableResource(uint256 tokenId) public virtual view returns (LocalResource memory) {
-      bytes16 resourceId = getActiveResources(tokenId)[0];
-      return _localResources[resourceId];
+  function getLocalResource(bytes16 resourceKey) public virtual view returns(LocalResource memory) {
+      return _localResources[resourceKey];
   }
 
   function getResourceObject(address _storage, bytes8 _id) public virtual view returns (IResourceStorage.Resource memory) {
       return IResourceStorage(_storage).getResource(_id);
   }
 
+  function getResourceOverwrites(uint256 _tokenId, bytes16 _resId) public view returns(bytes16) {
+      return _resourceOverwrites[_tokenId][_resId];
+  }
+
+  function tokenURI(uint256 tokenId) public view virtual returns (string memory) {
+      if (_activeResources[tokenId].length > 0)  {
+          LocalResource memory activeRes = _localResources[_activeResources[tokenId][0]];
+          address resAddr = activeRes.resourceAddress;
+          bytes8 resId = activeRes.resourceId;
+          string memory URI;
+          IResourceStorage.Resource memory _activeRes = IResourceStorage(resAddr).getResource(resId);
+          if (!_tokenEnumeratedResource[resId]) {
+            URI = _activeRes.metadataURI;
+          }
+          else {
+            string memory baseURI = _activeRes.metadataURI;
+            URI = bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+          }
+          return URI;
+      }
+      else {
+          return _fallbackURI;
+    }
+  }
+
+  //Optionals
+
   function getResObjectByIndex(uint256 _tokenId, uint256 _index) public virtual view returns(IResourceStorage.Resource memory) {
+      bytes16 localResourceId = getActiveResources(_tokenId)[_index];
+      LocalResource memory _localResource = _localResources[localResourceId];
+      (address _storage, bytes8 _id) = (_localResource.resourceAddress, _localResource.resourceId);
+      return getResourceObject(_storage, _id);
+  }
+
+  function getPendingResObjectByIndex(uint256 _tokenId, uint256 _index) public virtual view returns(IResourceStorage.Resource memory) {
       bytes16 localResourceId = getActiveResources(_tokenId)[_index];
       LocalResource memory _localResource = _localResources[localResourceId];
       (address _storage, bytes8 _id) = (_localResource.resourceAddress, _localResource.resourceId);
@@ -488,26 +508,29 @@ contract ERCMultiResourceToken is Context, IERCMultiResource {
       return resources;
   }
 
-  function getResourceOverwrites(uint256 _tokenId, bytes16 _resId) public view returns(bytes16) {
-      return _resourceOverwrites[_tokenId][_resId];
+  function getFullPendingResources(uint256 tokenId) public virtual view returns (IResourceStorage.Resource[] memory) {
+      bytes16[] memory pendingResources = _pendingResources[tokenId];
+      uint256 len = pendingResources.length;
+      IResourceStorage.Resource[] memory resources;
+      for (uint i; i<len;) {
+        resources[i] = getResourceObject(_localResources[pendingResources[i]].resourceAddress, _localResources[pendingResources[i]].resourceId);
+        unchecked {++i;}
+      }
+      return resources;
   }
+
+  //implementation
 
   function hashResource16(address _address, bytes8 _id) public pure returns (bytes16) {
       return bytes16(keccak256(abi.encodePacked(_address, _id)));
   }
 
-  function tokenURI(uint256 tokenId) public view virtual returns (string memory) {
-      if (_activeResources[tokenId].length > 0)  {
-          LocalResource memory activeRes = _localResources[_activeResources[tokenId][0]];
-          address resAddr = activeRes.resourceAddress;
-          bytes8 resId = activeRes.resourceId;
-
-          IResourceStorage.Resource memory _activeRes = IResourceStorage(resAddr).getResource(resId);
-          string memory URI = _activeRes.src;
-          return URI;
-      }
-      else {
-          return _fallbackURI;
-    }
+  function setTokenEnumeratedResource(bytes8 _resourceId, bool state) public virtual {
+      _tokenEnumeratedResource[_resourceId] = state;
   }
+
+  function isTokenEnumeratedResource(bytes8 _resourceId) public view virtual returns(bool) {
+      return _tokenEnumeratedResource[_resourceId];
+  }
+
 }

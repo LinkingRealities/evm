@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "./interfaces/IRMRKResourceCore.sol";
+import "./interfaces/IRMRKResourceStorage.sol";
 import "./RMRKResourceCore.sol";
 import "./library/RMRKLib.sol";
 
@@ -10,6 +11,7 @@ contract RMRKMultiResource {
 
   using RMRKLib for uint256;
   using RMRKLib for bytes16[];
+  using Strings for uint256;
 
   struct Resource {
     IRMRKResourceCore resourceAddress;
@@ -37,6 +39,9 @@ contract RMRKMultiResource {
 
   //mapping of tokenId to all resources by priority
   mapping(uint256 => bytes16[]) private _pendingResources;
+
+  //Mapping of bytes8 resource ID to tokenEnumeratedResource for tokenURI
+  mapping(bytes8 => bool) private _tokenEnumeratedResource;
 
   // AccessControl roles and nest flag constants
   RMRKResourceCore public resourceStorage;
@@ -226,15 +231,24 @@ contract RMRKMultiResource {
       return bytes16(keccak256(abi.encodePacked(_address, _id)));
   }
 
+  function setTokenEnumeratedResource(bytes8 _resourceId, bool state) public virtual {
+      _tokenEnumeratedResource[_resourceId] = state;
+  }
+
   function tokenURI(uint256 tokenId) public view virtual returns (string memory) {
       if (_activeResources[tokenId].length > 0)  {
           Resource memory activeRes = _resources[_activeResources[tokenId][0]];
           IRMRKResourceCore resAddr = activeRes.resourceAddress;
           bytes8 resId = activeRes.resourceId;
-
+          string memory URI;
           IRMRKResourceCore.Resource memory _activeRes = IRMRKResourceCore(resAddr).getResource(resId);
-          string memory URI = _activeRes.src;
-          return URI;
+          if (!_tokenEnumeratedResource[resId]) {
+            return _activeRes.metadataURI;
+          }
+          else {
+            string memory baseURI = _activeRes.metadataURI;
+            return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+          }
       }
       else {
           return _fallbackURI;

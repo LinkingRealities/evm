@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-interface IRMRKResourceCore {
+interface IRMRKResourceStorage {
     struct Resource {
         bytes8 id; //8 bytes
         string src; //32+

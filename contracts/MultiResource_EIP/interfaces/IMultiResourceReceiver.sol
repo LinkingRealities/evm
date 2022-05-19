@@ -1,7 +1,11 @@
-/// @dev Note: the ERC-165 identifier for this interface is 0x150b7a02.
-interface MultiResourceTokenReceiver {
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/// @dev Note: the ERC-165 identifier for this interface is 0x********.
+
+interface IMultiResourceReceiver {
     /// @notice Handle the receipt of an NFT
-    /// @dev The ERC721 smart contract calls this function on the recipient
+    /// @dev The MulitResource smart contract calls this function on the recipient
     ///  after a `transfer`. This function MAY throw to revert and reject the
     ///  transfer. Return of other than the magic value MUST result in the
     ///  transaction being reverted.
@@ -10,7 +14,7 @@ interface MultiResourceTokenReceiver {
     /// @param _from The address which previously owned the token
     /// @param _tokenId The NFT identifier which is being transferred
     /// @param _data Additional data with no specified format
-    /// @return `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
+    /// @return `bytes4(keccak256("onMultiResourceReceived(address,address,uint256,bytes)"))`
     ///  unless throwing
     function onMultiResourceReceived(address _operator, address _from, uint256 _tokenId, bytes memory _data) external returns(bytes4);
 }
