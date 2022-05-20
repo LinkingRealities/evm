@@ -14,14 +14,6 @@ interface IMultiResource is IERC721 {
       bytes8 resourceId;
   }
 
-  function addResourceEntry(
-      bytes8 _id,
-      string memory _src,
-      string memory _thumb,
-      string memory _metadataURI,
-      bytes memory _custom
-  ) external;
-
   function addResourceToToken(
       uint256 _tokenId,
       address _resourceAddress,

@@ -11,6 +11,14 @@ interface IResourceStorage {
         bytes custom;
     }
 
+    function addResourceEntry(
+        bytes8 _id,
+        string memory _src,
+        string memory _thumb,
+        string memory _metadataURI,
+        bytes memory _custom
+    ) external;
+
     function getResource(bytes8 resourceId)
         external
         view
