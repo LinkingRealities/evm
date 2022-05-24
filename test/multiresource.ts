@@ -1,20 +1,28 @@
 import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
-import {    expect } from 'chai';
+import { expect } from 'chai';
 import { MultiResourceToken, ResourceStorage } from '../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 
 describe('MultiResource', async () => {
     let storage: ResourceStorage;
+    let storage2: ResourceStorage;
     let token: MultiResourceToken;
 
     let owner: SignerWithAddress;
     let addrs: any[];
 
+    const emptyOverwrite = ethers.utils.hexZeroPad('0x0', 16);
     const name = 'RmrkTest';
     const symbol = 'RMRKTST';
-    const resourceName = 'TestResource';
+    const resourceName = 'ResourceA';
+    const resourceName2 = 'ResourceB';
+
+    const srcDefault = "src";
+    const thumbDefault = "thumb";
+    const metaURIDefault = "metaURI";
+    const customDefault = ethers.utils.hexZeroPad('0x2222', 8);
 
     beforeEach(async () => {
         const [signersOwner, ...signersAddr] = await ethers.getSigners();
@@ -24,6 +32,9 @@ describe('MultiResource', async () => {
         const Storage = await ethers.getContractFactory('ResourceStorage');
         storage = await Storage.deploy(resourceName);
         await storage.deployed();
+
+        storage2 = await Storage.deploy(resourceName2);
+        await storage2.deployed();
 
         const Token = await ethers.getContractFactory('MultiResourceToken');
         token = await Token.deploy(name, symbol, resourceName);
@@ -73,4 +84,79 @@ describe('MultiResource', async () => {
             await expect(storage.addResourceEntry(id, "newSrc", thumb, metaURI, custom)).to.be.revertedWith("RMRK: resource already exists")
         });
     });
+
+    describe("Adding resources", async function () {
+        it("can add resource to token", async function() {
+            const resId = ethers.utils.hexZeroPad('0x0001', 8);
+            const resId2 = ethers.utils.hexZeroPad('0x0002', 8);
+            const tokenId = 1;
+
+            await token.mint(owner.address, tokenId);
+            await addResources([resId, resId2]);
+            await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
+            await token.addResourceToToken(tokenId, storage.address, resId2, emptyOverwrite);
+
+            const pending = await token.getFullPendingResources(tokenId);
+            expect(pending).to.be.eql([
+                [resId, srcDefault, thumbDefault, metaURIDefault, customDefault],
+                [resId2, srcDefault, thumbDefault, metaURIDefault, customDefault]
+            ]);
+        });
+
+        it("cannot add non existing resource to token", async function() {
+            const resId = ethers.utils.hexZeroPad('0x0001', 8);
+            const tokenId = 1;
+
+            await token.mint(owner.address, tokenId);
+            await expect(token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite)).to.be.revertedWith("RMRK: No resource matching Id");
+        });
+
+        it("cannot add resource to non existing token", async function() {
+            const resId = ethers.utils.hexZeroPad('0x0001', 8);
+            const tokenId = 1;
+
+            await addResources([resId]);
+            await expect(token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite)).to.be.revertedWith("ERC721: owner query for nonexistent token");
+        });
+
+        it("cannot add resource twice to the same token", async function() {
+            const resId = ethers.utils.hexZeroPad('0x0001', 8);
+            const tokenId = 1;
+
+            await token.mint(owner.address, tokenId);
+            await addResources([resId]);
+            await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
+            await expect(token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite)).to.be.revertedWith("MultiResource: Resource already exists on token");
+        });
+
+        it("can add resources from different storages to token", async function() {
+            const resId = ethers.utils.hexZeroPad('0x0001', 8);
+            const resId2 = ethers.utils.hexZeroPad('0x0002', 8);
+            const tokenId = 1;
+
+            await token.mint(owner.address, tokenId);
+            await addResources([resId]);
+            await addResources([resId2], storage2);
+            await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
+            await token.addResourceToToken(tokenId, storage2.address, resId2, emptyOverwrite);
+
+            const pending = await token.getFullPendingResources(tokenId);
+            expect(pending).to.be.eql([
+                [resId, srcDefault, thumbDefault, metaURIDefault, customDefault],
+                [resId2, srcDefault, thumbDefault, metaURIDefault, customDefault]
+            ]);
+        });
+    });
+
+    async function addResources(ids: string[], useStorage?: ResourceStorage): Promise<void> {
+        ids.forEach(async resId => {
+            if (useStorage !== undefined) {
+                await useStorage.addResourceEntry(resId, srcDefault, thumbDefault, metaURIDefault, customDefault);
+            }
+            else {
+                // Use default
+                await storage.addResourceEntry(resId, srcDefault, thumbDefault, metaURIDefault, customDefault);
+            }
+        });        
+    }
 });

@@ -350,12 +350,17 @@ contract MultiResourceToken is Context, IMultiResource {
       bytes16 localResourceId = hashResource16(_resourceAddress, _resourceId);
 
       require(
+        _owners[_tokenId] != address(0),
+        "ERC721: owner query for nonexistent token"
+      );
+
+      require(
         _tokenResources[_tokenId][localResourceId] == false,
         "MultiResource: Resource already exists on token"
       );
 
       require(
-        resourceStorage.getResource(_resourceId).id != bytes8(0),
+        IResourceStorage(_resourceAddress).getResource(_resourceId).id != bytes8(0),
         "MultiResource: Resource not found in storage"
       );
 
@@ -500,7 +505,7 @@ contract MultiResourceToken is Context, IMultiResource {
   function getFullResources(uint256 tokenId) public virtual view returns (IResourceStorage.Resource[] memory) {
       bytes16[] memory activeResources = _activeResources[tokenId];
       uint256 len = activeResources.length;
-      IResourceStorage.Resource[] memory resources;
+      IResourceStorage.Resource[] memory resources = new IResourceStorage.Resource[](len);
       for (uint i; i<len;) {
         resources[i] = getResourceObject(_localResources[activeResources[i]].resourceAddress, _localResources[activeResources[i]].resourceId);
         unchecked {++i;}
@@ -511,7 +516,7 @@ contract MultiResourceToken is Context, IMultiResource {
   function getFullPendingResources(uint256 tokenId) public virtual view returns (IResourceStorage.Resource[] memory) {
       bytes16[] memory pendingResources = _pendingResources[tokenId];
       uint256 len = pendingResources.length;
-      IResourceStorage.Resource[] memory resources;
+      IResourceStorage.Resource[] memory resources = new IResourceStorage.Resource[](len);
       for (uint i; i<len;) {
         resources[i] = getResourceObject(_localResources[pendingResources[i]].resourceAddress, _localResources[pendingResources[i]].resourceId);
         unchecked {++i;}
@@ -532,5 +537,10 @@ contract MultiResourceToken is Context, IMultiResource {
   function isTokenEnumeratedResource(bytes8 _resourceId) public view virtual returns(bool) {
       return _tokenEnumeratedResource[_resourceId];
   }
+
+  // External Mint
+  function mint(address to, uint256 tokenId) external {
+        _mint(to, tokenId);
+    }
 
 }
