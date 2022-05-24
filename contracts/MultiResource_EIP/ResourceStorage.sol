@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 contract ResourceStorage {
     /**
-      @dev Ancillary resource storage contract.
+        @dev Ancillary resource storage contract.
     */
 
     struct Resource {
@@ -67,7 +67,7 @@ contract ResourceStorage {
         Resource memory resource_ = _resources[resourceId];
         require(
             resource_.id != bytes8(0),
-            "RMRKResource: No resource at index"
+            "RMRK: No resource matching Id"
         );
         return resource_;
     }
