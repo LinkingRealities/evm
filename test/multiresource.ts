@@ -198,14 +198,18 @@ describe('MultiResource', async () => {
       await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
       await token.acceptResource(tokenId, 0);
 
-      await expect(token.acceptResource(tokenId, 0)).to.be.reverted;
+      await expect(token.acceptResource(tokenId, 0)).to.be.revertedWith(
+        'MultiResource: index out of bounds',
+      );
     });
 
     it('cannot accept non existing resource', async function () {
       const tokenId = 1;
 
       await token.mint(owner.address, tokenId);
-      await expect(token.acceptResource(tokenId, 0)).to.be.reverted;
+      await expect(token.acceptResource(tokenId, 0)).to.be.revertedWith(
+        'MultiResource: index out of bounds',
+      );
     });
   });
 

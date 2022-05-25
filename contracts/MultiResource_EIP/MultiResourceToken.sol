@@ -365,6 +365,7 @@ contract MultiResourceToken is Context, IMultiResource {
   }
 
   function acceptResource(uint256 _tokenId, uint256 index) external virtual {
+      require(index < _pendingResources[_tokenId].length, "MultiResource: index out of bounds");
       bytes16 _localResourceId = _pendingResources[_tokenId][index];
       require(
           address(_localResources[_localResourceId].resourceAddress) != address(0),
@@ -386,6 +387,7 @@ contract MultiResourceToken is Context, IMultiResource {
   }
 
   function rejectResource(uint256 _tokenId, uint256 index) external virtual {
+      require(index < _pendingResources[_tokenId].length, "MultiResource: index out of bounds");
       require(
         _pendingResources[_tokenId].length > index,
         "MultiResource: Pending child index out of range"
