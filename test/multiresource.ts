@@ -1,13 +1,13 @@
 import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { MultiResourceToken, ResourceStorage } from '../typechain';
+import { MultiResourceTokenMock, ResourceStorageMock } from '../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('MultiResource', async () => {
-  let storage: ResourceStorage;
-  let storage2: ResourceStorage;
-  let token: MultiResourceToken;
+  let storage: ResourceStorageMock;
+  let storage2: ResourceStorageMock;
+  let token: MultiResourceTokenMock;
 
   let owner: SignerWithAddress;
   let addrs: any[];
@@ -28,14 +28,14 @@ describe('MultiResource', async () => {
     owner = signersOwner;
     addrs = signersAddr;
 
-    const Storage = await ethers.getContractFactory('ResourceStorage');
+    const Storage = await ethers.getContractFactory('ResourceStorageMock');
     storage = await Storage.deploy(resourceName);
     await storage.deployed();
 
     storage2 = await Storage.deploy(resourceName2);
     await storage2.deployed();
 
-    const Token = await ethers.getContractFactory('MultiResourceToken');
+    const Token = await ethers.getContractFactory('MultiResourceTokenMock');
     token = await Token.deploy(name, symbol, resourceName);
     await token.deployed();
   });
@@ -198,22 +198,18 @@ describe('MultiResource', async () => {
       await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
       await token.acceptResource(tokenId, 0);
 
-      await expect(token.acceptResource(tokenId, 0)).to.be.revertedWith(
-        'MultiResource: index out of bounds',
-      );
+      await expect(token.acceptResource(tokenId, 0)).to.be.reverted;
     });
 
     it('cannot accept non existing resource', async function () {
       const tokenId = 1;
 
       await token.mint(owner.address, tokenId);
-      await expect(token.acceptResource(tokenId, 0)).to.be.revertedWith(
-        'MultiResource: index out of bounds',
-      );
+      await expect(token.acceptResource(tokenId, 0)).to.be.reverted;
     });
   });
 
-  async function addResources(ids: string[], useStorage?: ResourceStorage): Promise<void> {
+  async function addResources(ids: string[], useStorage?: ResourceStorageMock): Promise<void> {
     ids.forEach(async (resId) => {
       if (useStorage !== undefined) {
         await useStorage.addResourceEntry(

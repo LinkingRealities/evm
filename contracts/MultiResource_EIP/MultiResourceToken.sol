@@ -24,7 +24,7 @@ contract MultiResourceToken is Context, IMultiResource {
   string private _symbol;
 
   // Mapping from token ID to owner address
-  mapping(uint256 => address) private _owners;
+  mapping(uint256 => address) internal _owners;
 
   // Mapping owner address to token count
   mapping(address => uint256) private _balances;
@@ -36,10 +36,10 @@ contract MultiResourceToken is Context, IMultiResource {
   mapping(address => mapping(address => bool)) private _operatorApprovals;
 
   //mapping resourceContract to resource entry
-  mapping(bytes16 => LocalResource) private _localResources;
+  mapping(bytes16 => LocalResource) internal _localResources;
 
   //mapping tokenId to current resource to replacing resource
-  mapping(uint256 => mapping(bytes16 => bytes16)) private _resourceOverwrites;
+  mapping(uint256 => mapping(bytes16 => bytes16)) internal _resourceOverwrites;
 
   //mapping of tokenId to all resources by priority
   mapping(uint256 => bytes16[]) private _activeResources;
@@ -48,10 +48,10 @@ contract MultiResourceToken is Context, IMultiResource {
   mapping(uint256 => uint16[]) private _activeResourcePriorities;
 
   //Double mapping of tokenId to active resources
-  mapping(uint256 => mapping(bytes16 => bool)) private _tokenResources;
+  mapping(uint256 => mapping(bytes16 => bool)) internal _tokenResources;
 
   //mapping of tokenId to all resources by priority
-  mapping(uint256 => bytes16[]) private _pendingResources;
+  mapping(uint256 => bytes16[]) internal _pendingResources;
 
   //Mapping of bytes8 resource ID to tokenEnumeratedResource for tokenURI
   mapping(bytes8 => bool) private _tokenEnumeratedResource;
@@ -510,10 +510,5 @@ contract MultiResourceToken is Context, IMultiResource {
   function isTokenEnumeratedResource(bytes8 _resourceId) public view virtual returns(bool) {
       return _tokenEnumeratedResource[_resourceId];
   }
-
-  // External Mint
-  function mint(address to, uint256 tokenId) external {
-        _mint(to, tokenId);
-    }
 
 }
