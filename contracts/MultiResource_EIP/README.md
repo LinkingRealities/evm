@@ -3,20 +3,62 @@ A standard interface for multi-resource non-fungible tokens.
 
 ## Abstract
 
-The following standard allows for the implementation of a standard API for multi-resource NFTs -- NFTs which incorporate the ability to add, delete, redirect, and modify their corresponding resources. This implementation may be thought of as an extension for ERC721 and is ERC721 compatible, though a full interface including both ERC721 and Multi-Resource functions is provided below for completeness.
+The Multi Resource NFT standard is a standalone part of RMRK concepts and an extension of ERC-721. It allows for the construction of a new primitive: context-dependent output of multimedia information per single NFT.
+
+An NFT can have multiple resources (outputs), and orders them by priority. They do not have to match in mimetype or tokenURI, nor do they depend on one another. Resources are not standalone entities, but should be thought of as “namespaced tokenURIs” that can be ordered at will by the NFT owner, but only modified, updated, added, or removed if agreed on by both owner and minter.
 
 ## Motivation
 
-There are many cases in which a non-fungible token may benefit from limited mutability, chief among them the need to point to a variety of resources when interacting with a variety of platforms or protocols. With multi-resource tokens, users and collection managers alike can add or rearrange token resource data to serve content to new platforms, hold multiple media references on a single token, as well as manage resources according to a priority system to be able to present different media references to an external renderer in a user-controlled way. This implementation also allows for storing generic data packets on top of these references for use in gaming, governance, defi, etc.
+There are four key use cases that the current ERC721 standard is ill-equipped to handle:
+
+cross-metaverse compatibility
+multi-media output
+media redundancy
+NFT evolution
+Let us look at each in depth.
+
+Cross-metaverse compatibility
+Perhaps better phrased as cross-engine compatibility, solves the (very valid) complaint of gamer communities when they say that a skin for Counterstrike is not portable into something like Fortnite because the engines are different - it is not a simple matter of just having an NFT.
+
+With Multi-resource NFTs, it is.
+
+One resource is a skin for Fortnite, an actual skin file. Another is a skin file for Counterstrike. A third is a generic resource intended to be shown in catalogs, marketplaces, portfolio trackers - a representation, stylized thumbnail, or animated demo or trailer of the skin that renders outside of any of the two games.
+
+When using the NFT in one such game, not only do the game developers not need to pre-build the asset into the game and then allow it based on NFT balance in the logged in web3 address, but the NFT has everything it needs in its skin file, making storage and ownership of this skin actually decentralized and not reliant on the gamedev team.
+
+After the fact, this NFT can be given further utility by means of new additional resources: more games, more skins, appended to the same NFT. Thus, a game skin as an NFT becomes an ever-evolving NFT of infinite utility.
+
+Multi-media output
+An NFT that is an eBook can be both a PDF and an audio file at the same time, and depending on which software loads it, that is the media output that gets consumed: PDF if loaded into Kindle, audio if loaded into Audible. Additionally, an extra resource that is a simple image can be present in the NFT, intended for showing on the various marketplaces, SERP pages, portfolio trackers and others - perhaps the book’s cover image.
+
+Media Redundancy
+Many NFTs are minted hastily without best practices in mind - specifically, many NFTs are minted with metadata centralized on a server somewhere or, in some cases, a hardcoded IPFS gateway which can also go down, instead of just an IPFS hash.
+
+By adding the same metadata file as different resources, e.g., one resource of a metadata and its linked image on Arweave, one resource of this same combo on Sia, another of the same combo on IPFS, etc., the resilience of the metadata and its referenced media increases exponentially as the chances of all the protocols going down at once become ever less likely.
+
+NFT Evolution
+Many NFTs, particularly game related ones, require evolution. This is especially the case in modern metaverses where no metaverse is actually a metaverse - it is just a multiplayer game hosted on someone’s server which replaced username/password logins with reading an NFT’s balance.
+
+When the server goes down or the game shuts down, the player ends up with nothing (loss of experience) or something unrelated (resources or accessories unrelated to the game experience, spamming the wallet, incompatible with other “verses” - see cross-metaverse compatibility above).
+
+With Multi-resource NFTs, a minter or another pre-approved entity is allowed to suggest a new resource to the NFT owner who can then accept it or reject it. The resource can even target an existing resource which is to be replaced.
+
+This allows level-up mechanics where, once enough experience has been collected, a user can accept the level-up. The level-up consists of a new resource being added to the NFT, and once accepted, this new resource replaces the old one.
+
+As a concrete example, think of Pokemon™️ evolving - once enough experience has been attained, a trainer can choose to evolve their monster. With Multi-resource NFTs, it is not necessary to have centralized control over metadata to replace it, nor is it necessary to airdrop another NFT into a user’s wallet - instead, a new Raichu resource is minted onto Pikachu, and if accepted, the Pikachu resource is gone, replaced by Raichu, which now has its own attributes, values, etc.
+
+The level-up mechanic can be further expanded by being combined with nesting and equippables as specified in the RMRK concepts but this is outside of the scope of this EIP.
 
 ## Specification
 
-```
+The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
+
 /// @title ERC-**** Multi-Resource Token Standard
 /// @dev See https://eips.ethereum.org/EIPS/********
 ///  Note: the ERC-165 identifier for this interface is 0x********.
 pragma solidity ^0.8.9;
 
+```
 interface IERCMultiResource /* is ERC721 */ {
 
     struct Resource {
@@ -31,45 +73,74 @@ interface IERCMultiResource /* is ERC721 */ {
         address resourceAddress;
         bytes8 resourceId;
     }
+    /*
+    @dev This emits whenever a pending resource has been added to a token's pending resources.
+    */
+    event ResourceAddedToToken(uint256 indexed tokenId, bytes16 localResourceId);
+
+    /*
+    @dev This emits whenever a resource has accepted by the token owner.
+    */
+    event ResourceAccepted(uint256 indexed tokenId, bytes16 localResourceId);
+
+    /*
+    @dev This emits whenever a pending resource has been dropped from the pending resources array.
+    */
+    event ResourceRejected(uint256 indexed tokenId, bytes16 localResourceId);
+
+    /*
+    @dev This emits whenever a resource's priority has been set.
+    */
+    event ResourcePrioritySet(uint256 indexed tokenId);
+
+    /*
+    @dev This emits whenever a pending resource also proposes to overwrite an exisitng resource.
+    */
+    event ResourceOverwriteProposed(uint256 indexed tokenId, bytes16 localResourceId, bytes16 overwrites);
+
+    /*
+    @dev This emits whenever a pending resource overwrites an existing resource.
+    */
+    event ResourceOverwritten(uint256 indexed tokenId, bytes16 overwritten);
 
     /*
     @notice Adds a resource to the pendingResources array of a token.
     @dev In order to be considered valid for rendering, the resource must be
       approved by the user via the acceptResource function. Pending resources
       are capped at a length of 128 for grief prevention.
-    @param _tokenId the Id of the token to add a resource to.
-    @param _resourceAddress the address of the contract storing the resource
-    @param _resouceId the bytes8 identifier of the resource as it exists on the
+    @param tokenId the Id of the token to add a resource to.
+    @param resourceAddress the address of the contract storing the resource
+    @param resouceId the bytes8 identifier of the resource as it exists on the
       target contract
-    @param _overwrites optional parameter to signal that, on acceptance, this
+    @param overwrites optional parameter to signal that, on acceptance, this
       resource will overwrite another resource already present in the
       acceptedResources array
     */
-    function addResourceToToken(uint256 _tokenId, address _resourceAddress, bytes8 _resourceId, bytes16 _overwrites) external;
+    function addResourceToToken(uint256 tokenId, address resourceAddress, bytes8 resourceId, bytes16 overwrites) external;
 
     /*
     @notice Accepts the resouce from pending.
     @dev Moves the resource from the pending array to the accepted array. Array
       order is not preserved.
-    @param _tokenId the token to accept a resource
-    @param _resourceIndex the index of the resource to accept
+    @param tokenId the token to accept a resource
+    @param resourceIndex the index of the resource to accept
     */
-    function acceptResource(uint256 _tokenId, uint256 resourceIndex) external;
+    function acceptResource(uint256 tokenId, uint256 resourceIndex) external;
 
     /*
     @notice Reject a resource, dropping it from the pending array.
     @dev Drops the resource from the pending array. Array order is not preserved.
-    @param _tokenId the token to reject a resource
-    @param _resourceIndex the index of the resource to reject
+    @param tokenId the token to reject a resource
+    @param resourceIndex the index of the resource to reject
     */
-    function rejectResource(uint256 _tokenId, uint256 resourceIndex) external;
+    function rejectResource(uint256 tokenId, uint256 resourceIndex) external;
 
     /*
     @notice Reject all resources, clearing the pending array.
     @dev Sets the pending array to empty.
-    @param _tokenId the token to reject a resource
+    @param tokenId the token to reject a resource
     */
-    function rejectAllResources(uint256 _tokenId) external;
+    function rejectAllResources(uint256 tokenId) external;
 
     /*
     @notice Set the priority of the active resources array.
@@ -78,12 +149,12 @@ interface IERCMultiResource /* is ERC721 */ {
       that the the active resource at index 1 of the active resource array
       has a priority of 1, index 2 has a priority of 3, and index 3 has a priority
       of 2. There is no validation on priority value input; out of order indexes
-      must be handled by the frontend. The length of the _priorities array must
+      must be handled by the frontend. The length of the priorities array must
       be equal to the present length of the active resources array.
-    @param _tokenId the token of the resource priority to set
-    @param _priorities An array of priorities to set.
+    @param tokenId the token of the resource priority to set
+    @param priorities An array of priorities to set.
     */
-    function setPriority(uint256 _tokenId, uint16[] memory _priorities) external;
+    function setPriority(uint256 tokenId, uint16[] memory priorities) external;
 
     /*
     @notice Returns an array of byte16 identifiers from the active resources
@@ -92,10 +163,10 @@ interface IERCMultiResource /* is ERC721 */ {
       (bytes16 => (address, bytes8)), where address is the address of a
       resource storage contract, and bytes8 is the id of the relevant resource
       on that storage contract. See addResourceEntry dev comment for rationale.
-    @param _tokenId the token of the active resource set to get
+    @param tokenId the token of the active resource set to get
     @return an array of bytes16 local resource ids corresponding to active resources
     */
-    function getActiveResources(uint256 _tokenId) external view returns(bytes16[] memory);
+    function getActiveResources(uint256 tokenId) external view returns(bytes16[] memory);
 
     /*
     @notice Returns an array of byte16 identifiers from the pending resources
@@ -104,53 +175,54 @@ interface IERCMultiResource /* is ERC721 */ {
       (bytes16 => (address, bytes8)), where address is the address of a
       resource storage contract, and bytes8 is the id of the relevant resource
       on that storage contract. See addResourceEntry dev comment for rationale.
-    @param _tokenId the token of the active resource set to get
+    @param tokenId the token of the active resource set to get
     @return an array of bytes16 local resource ids corresponding to pending resources
     */
-    function getPendingResources(uint256 _tokenId) external view returns(bytes16[] memory);
+    function getPendingResources(uint256 tokenId) external view returns(bytes16[] memory);
 
     /*
     @notice Returns the local resource associated with its bytes16 key.
     @dev The localResource struct consists of an address and a bytes8, corresponding to the
       resource storage contract and the bytes8 key of the resource on that contract.
-    @param _resourceKey a bytes16 identifier for a local resource object
+    @param resourceKey a bytes16 identifier for a local resource object
     @return a LocalResource object
     */
-    function getLocalResource(bytes16 _resourceKey) public virtual view returns(LocalResource memory);
+    function getLocalResource(bytes16 resourceKey) public virtual view returns(LocalResource memory);
 
     /*
     @notice Returns the resource object from a target resource storage contract.
-    @param _storage the address of the resource storage contract
-    @param _id the bytes8 identifier of the resource to query
+    @param storage the address of the resource storage contract
+    @param id the bytes8 identifier of the resource to query
     @return a resource object
     */
-    function getResourceObject(address _storage, bytes8 _id) public virtual view returns (IResourceStorage.Resource memory);
+    function getResourceObject(address storage, bytes8 id) public virtual view returns (IResourceStorage.Resource memory);
 
     /*
     @notice Returns an array of uint16 resource priorities
     @dev No checking is done on resource priority ranges, sorting must be
-      handled by the frontend.
-    @param _tokenId the token of the active resource set to get
+      handled by the frontend.kenId` is not a valid NFT.
+    /// @param _tokenId The
+    @param tokenId the token of the active resource set to get
     @return an array of uint16 resource priorities corresponding to active resources
     */
-    function getActiveResourcePriorities(uint256 _tokenId) external view returns(uint16[] memory);
+    function getActiveResourcePriorities(uint256 tokenId) external view returns(uint16[] memory);
 
     /*
     @notice Returns the bytes16 resource ID a given token will overwrite if
       overwrite is enabled for a pending resource.
-    @param _tokenId the token of the active pending overwrite
-    @param _resId the resource ID which will be potentially overwritten
-    @return a bytes16 corresponding to the local resource ID of the resource that will overwrite @param _resId
+    @param tokenId the token of the active pending overwrite
+    @param resId the resource ID which will be potentially overwritten
+    @return a bytes16 corresponding to the local resource ID of the resource that will overwrite @param resId
     */
-    function getResourceOverwrites(uint256 _tokenId, bytes16 _resId) external view returns(bytes16);
+    function getResourceOverwrites(uint256 tokenId, bytes16 resId) external view returns(bytes16);
 
     /*
     @notice Returns the src field of the first active resource on the token,
       otherwise returns a fallback src.
-    @param _tokenId the token to query for a URI
+    @param tokenId the token to query for a URI
     @return the string URI of the token
     */
-    function tokenURI(uint256 _tokenId) external view returns (string memory);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
 
 }
 
@@ -293,25 +365,29 @@ interface IResourceStorage {
   function getResource(bytes8 _resourceId) external view returns (Resource memory);
 
 }
-
 ```
-
 ## Rationale
 
-#Backward Compatibility
-The Multi Resource token standard has been based on existing ERC721 implementations in order to take advantage of the robust tooling available for ERC721 implementations and to ensure compatibility with existing ERC721 infrastructure.
-
 #Resource fields
+The MultiResource token standard supports five fields:
+
+id: a bytes8 resource identifier
+src: a string pointing to the media associated with the resource
+thumb: a string pointing to thumbnail media associated with the resource
+metadataURI: A string pointing to a metadata file associated with the resource
+custom: A bytes object that may be used to store generic data
 
 #Multi-Resource Storage Schema
 Resources are stored on a token as an array of bytes16 identifiers.
 
 In order to reduce redundant on-chain string storage, multi resource tokens store resources by reference via a secondary storage contract. A resource entry on the storage contract is stored via a bytes8 mapping to resource data. A bytes16 identifier is then computed from the hash of (address storageContractAddress, bytes8 resourceId). Both address and bytes8 identifier are then stored on the local contract as a bytes16 mapping to this reference.
 
-A resource array is an array of these bytes16 references. This ensures that for tokens that share common features and can be easily identified by their tokenId may share a single resource, and URIs may be derived programmatically through string concatenation.
+A resource array is an array of these bytes16 references.
+
+This structure ensures that for tokens whose source differs only via their tokenId, URIs may still be derived programmatically through concatenation.
 
 #Propose-Commit pattern for resource addition
-Adding resources to an existing token takes the form of a propose-commit pattern to allow for limited mutability by a 3rd party. When adding a resource to a token, it is first placed in the "Pending" array, and must be migrated to the "Active" array by the token owner. The "Pending" resources array is limited to 128 slots to prevent spam.
+Adding resources to an existing token takes the form of a propose-commit pattern to allow for limited mutability by a 3rd party. When adding a resource to a token, it is first placed in the "Pending" array, and must be migrated to the "Active" array by the token owner. The "Pending" resources array is limited to 128 slots to prevent spam and griefing.
 
 #Resource management
 Several functions for resource management are included. In addition to permissioned migration from "Pending" to "Active", the owner of a token may also drop resources from both the active and the pending array -- an emergency function to clear all entries from the pending array is also included.
@@ -321,53 +397,19 @@ Fallback Resource
 
 #Resource initialization
 
+#Backward Compatibility
+The Multi Resource token standard has been based on existing ERC721 implementations in order to take advantage of the robust tooling available for ERC721 implementations and to ensure compatibility with existing ERC721 infrastructure.
 
+## Reference implementation
+
+A reference implementation by Neon Crisis developer CicadaNCR is available in the RMRK EIP branch of the RMRK EVM contract suite: https://github.com/rmrk-team/evm/blob/eip/contracts/MultiResource_EIP/ERCMultiResourceToken.so
+
+## Security Considerations
+
+The same security considerations as with ERC721 apply: hidden logic may be present in any of the functions, including burn, add resource, accept resource, and more.
+
+Caution is advised when dealing with non-audited contracts.
 
 ## Develop
 
-Just run `npx hardhar compile` to check if it works. Refer to the rest below.
-
-This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
-
-The project comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts. It also comes with a variety of other tools, preconfigured to work with the project code.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-npx hardhat help
-REPORT_GAS=true npx hardhat test
-npx hardhat coverage
-npx hardhat run scripts/deploy.ts
-TS_NODE_FILES=true npx ts-node scripts/deploy.ts
-npx eslint '**/*.{js,ts}'
-npx eslint '**/*.{js,ts}' --fix
-npx prettier '**/*.{json,sol,md}' --check
-npx prettier '**/*.{json,sol,md}' --write
-npx solhint 'contracts/**/*.sol'
-npx solhint 'contracts/**/*.sol' --fix
-```
-
-## Etherscan verification
-
-To try out Etherscan verification, you first need to deploy a contract to an Ethereum network that's supported by Etherscan, such as Ropsten.
-
-In this project, copy the .env.example file to a file named .env, and then edit it to fill in the details. Enter your Etherscan API key, your Ropsten node URL (eg from Alchemy), and the private key of the account which will send the deployment transaction. With a valid .env file in place, first deploy your contract:
-
-```shell
-hardhat run --network ropsten scripts/sample-script.ts
-```
-
-Then, copy the deployment address and paste it in to replace `DEPLOYED_CONTRACT_ADDRESS` in this command:
-
-```shell
-npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
-```
-
-# Performance optimizations
-
-For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+These contracts are tested in Hardhat. Install Hardhat and run `npx hardhat test` to run the test script on the mock MultiResource implementation.

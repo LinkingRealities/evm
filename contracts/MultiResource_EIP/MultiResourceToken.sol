@@ -62,13 +62,6 @@ contract MultiResourceToken is Context, IMultiResource {
 
   //Resource events
   event ResourceStorageSet(bytes8 id);
-  event ResourceAddedToToken(uint256 indexed tokenId, bytes16 localResourceId);
-  event ResourceAccepted(uint256 indexed tokenId, bytes16 localResourceId);
-  //Emits bytes16(0) as localResourceId in the event all resources are deleted
-  event ResourceRejected(uint256 indexed tokenId, bytes16 localResourceId);
-  event ResourcePrioritySet(uint256 indexed tokenId);
-  event ResourceOverwriteProposed(uint256 indexed tokenId, bytes16 localResourceId, bytes16 overwrites);
-  event ResourceOverwritten(uint256 indexed tokenId, bytes16 overwritten);
 
   constructor(string memory name_, string memory symbol_, string memory resourceName_) {
     _name = name_;
@@ -391,8 +384,7 @@ contract MultiResourceToken is Context, IMultiResource {
       emit ResourceAddedToToken(_tokenId, localResourceId);
   }
 
-  function acceptResource(uint256 _tokenId, uint256 index) external {
-      require(index < _pendingResources[_tokenId].length, "MultiResource: index out of bounds");
+  function acceptResource(uint256 _tokenId, uint256 index) external virtual {
       bytes16 _localResourceId = _pendingResources[_tokenId][index];
       require(
           address(_localResources[_localResourceId].resourceAddress) != address(0),
@@ -413,7 +405,7 @@ contract MultiResourceToken is Context, IMultiResource {
       emit ResourceAccepted(_tokenId, _localResourceId);
   }
 
-  function rejectResource(uint256 _tokenId, uint256 index) external {
+  function rejectResource(uint256 _tokenId, uint256 index) external virtual {
       require(
         _pendingResources[_tokenId].length > index,
         "MultiResource: Pending child index out of range"

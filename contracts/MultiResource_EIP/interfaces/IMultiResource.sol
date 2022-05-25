@@ -14,6 +14,19 @@ interface IMultiResource is IERC721 {
       bytes8 resourceId;
   }
 
+  event ResourceAddedToToken(uint256 indexed tokenId, bytes16 localResourceId);
+
+  event ResourceAccepted(uint256 indexed tokenId, bytes16 localResourceId);
+
+  //Emits bytes16(0) as localResourceId in the event all resources are deleted
+  event ResourceRejected(uint256 indexed tokenId, bytes16 localResourceId);
+
+  event ResourcePrioritySet(uint256 indexed tokenId);
+
+  event ResourceOverwriteProposed(uint256 indexed tokenId, bytes16 localResourceId, bytes16 overwrites);
+
+  event ResourceOverwritten(uint256 indexed tokenId, bytes16 overwritten);
+
   function addResourceToToken(
       uint256 _tokenId,
       address _resourceAddress,
