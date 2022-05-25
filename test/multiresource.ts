@@ -213,6 +213,46 @@ describe('MultiResource', async () => {
     });
   });
 
+  describe('Rejecting resources', async function () {
+    it('can reject resource', async function () {
+      const resId = ethers.utils.hexZeroPad('0x0001', 8);
+      const tokenId = 1;
+
+      await token.mint(owner.address, tokenId);
+      await addResources([resId]);
+      await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
+      await expect(token.rejectResource(tokenId, 0)).to.emit(token, 'ResourceRejected');
+
+      const pending = await token.getFullPendingResources(tokenId);
+      expect(pending).to.be.eql([]);
+      const accepted = await token.getFullResources(tokenId);
+      expect(accepted).to.be.eql([]);
+    });
+
+    it('cannot reject resource twice', async function () {
+      const resId = ethers.utils.hexZeroPad('0x0001', 8);
+      const tokenId = 1;
+
+      await token.mint(owner.address, tokenId);
+      await addResources([resId]);
+      await token.addResourceToToken(tokenId, storage.address, resId, emptyOverwrite);
+      await token.rejectResource(tokenId, 0);
+
+      await expect(token.rejectResource(tokenId, 0)).to.be.revertedWith(
+        'MultiResource: index out of bounds',
+      );
+    });
+
+    it('cannot reject non existing resource', async function () {
+      const tokenId = 1;
+
+      await token.mint(owner.address, tokenId);
+      await expect(token.rejectResource(tokenId, 0)).to.be.revertedWith(
+        'MultiResource: index out of bounds',
+      );
+    });
+  });
+
   async function addResources(ids: string[], useStorage?: ResourceStorageMock): Promise<void> {
     ids.forEach(async (resId) => {
       if (useStorage !== undefined) {
