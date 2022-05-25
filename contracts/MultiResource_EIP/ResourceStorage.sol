@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.9;
 
+/**
+    @dev Ancillary resource storage contract.
+*/
 contract ResourceStorage {
-    /**
-        @dev Ancillary resource storage contract.
-    */
 
     struct Resource {
         bytes8 id; //8 bytes
@@ -36,13 +36,13 @@ contract ResourceStorage {
      * param4 _metadataURI is the URI of the resource's metadata
      */
 
-    function addResourceEntry(
-        bytes8 _id, //Previously named _id, have seen it called id in RMRK examples / documentation, ask for clarification
+    function _addResourceEntry(
+        bytes8 _id,
         string memory _src,
         string memory _thumb,
         string memory _metadataURI,
         bytes memory _custom
-    ) public {
+    ) internal {
         require(_id != bytes8(0), "RMRK: Write to zero");
         require(
             _resources[_id].id == bytes8(0),

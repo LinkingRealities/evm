@@ -60,9 +60,6 @@ contract MultiResourceToken is Context, IMultiResource {
 
   string private _fallbackURI;
 
-  //Resource events
-  event ResourceStorageSet(bytes8 id);
-
   constructor(string memory name_, string memory symbol_, string memory resourceName_) {
     _name = name_;
     _symbol = symbol_;
@@ -316,29 +313,12 @@ contract MultiResourceToken is Context, IMultiResource {
   //              RESOURCES
   ////////////////////////////////////////
 
-  function addResourceEntry(
-      bytes8 _id,
-      string memory _src,
-      string memory _thumb,
-      string memory _metadataURI,
-      bytes memory _custom
-  ) external virtual {
-    resourceStorage.addResourceEntry(
-      _id,
-      _src,
-      _thumb,
-      _metadataURI,
-      _custom
-      );
-    emit ResourceStorageSet(_id);
-  }
-
-  function addResourceToToken(
+  function _addResourceToToken(
       uint256 _tokenId,
       address _resourceAddress,
       bytes8 _resourceId,
       bytes16 _overwrites
-  ) external virtual {
+  ) internal virtual {
 
       bytes16 localResourceId = hashResource16(_resourceAddress, _resourceId);
 

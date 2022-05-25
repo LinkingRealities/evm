@@ -3,6 +3,10 @@
 pragma solidity ^0.8.0;
 
 interface IResourceStorage {
+
+    //Resource events
+    event ResourceStorageSet(bytes8 id);
+
     struct Resource {
         bytes8 id; //8 bytes
         string src; //32+
@@ -10,14 +14,6 @@ interface IResourceStorage {
         string metadataURI; //32+
         bytes custom;
     }
-
-    function addResourceEntry(
-        bytes8 _id,
-        string memory _src,
-        string memory _thumb,
-        string memory _metadataURI,
-        bytes memory _custom
-    ) external;
 
     function getResource(bytes8 resourceId)
         external

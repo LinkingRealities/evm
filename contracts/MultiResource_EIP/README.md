@@ -53,12 +53,12 @@ The level-up mechanic can be further expanded by being combined with nesting and
 
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
 
+```
 /// @title ERC-**** Multi-Resource Token Standard
 /// @dev See https://eips.ethereum.org/EIPS/********
 ///  Note: the ERC-165 identifier for this interface is 0x********.
 pragma solidity ^0.8.9;
 
-```
 interface IERCMultiResource /* is ERC721 */ {
 
     struct Resource {
@@ -102,21 +102,6 @@ interface IERCMultiResource /* is ERC721 */ {
     @dev This emits whenever a pending resource overwrites an existing resource.
     */
     event ResourceOverwritten(uint256 indexed tokenId, bytes16 overwritten);
-
-    /*
-    @notice Adds a resource to the pendingResources array of a token.
-    @dev In order to be considered valid for rendering, the resource must be
-      approved by the user via the acceptResource function. Pending resources
-      are capped at a length of 128 for grief prevention.
-    @param tokenId the Id of the token to add a resource to.
-    @param resourceAddress the address of the contract storing the resource
-    @param resouceId the bytes8 identifier of the resource as it exists on the
-      target contract
-    @param overwrites optional parameter to signal that, on acceptance, this
-      resource will overwrite another resource already present in the
-      acceptedResources array
-    */
-    function addResourceToToken(uint256 tokenId, address resourceAddress, bytes8 resourceId, bytes16 overwrites) external;
 
     /*
     @notice Accepts the resouce from pending.
@@ -338,26 +323,6 @@ interface IResourceStorage {
   }
 
   /*
-  @notice Adds a resource entry to the resource storage contract.
-  @dev Resources are stored on a separate contract and referred to by reference
-    for two reasons: generic reference storage on the multiresource token contract
-    for variable resource struct types, and to reduce redundant storage on the
-    multiresource token contract. With this structure, a generic resource can be
-    added once on the storage contract, and a reference to it can be added to it
-    once on the token contract. Implementers can then use string concatenation
-    to procedurally generate a link to a content-addressed archive based on
-    the base SRC in the resource and the token ID. Storing the resource on a new
-    token will only take 16 bytes of storage in the resource array per token for
-    repeated / tokenID dependent resources.
-  @param _id the id of the resource
-  @param _src a link to the source of the resource
-  @param _thumb a link to a low-resolution thumbnail of the resource
-  @param _metadataURI a link the the metadata of the resource
-  @param _custom additional data to be stored
-  */
-  function addResourceEntry(bytes8 _id, string memory _src, string memory _thumb, string memory _metadataURI, bytes memory _custom) external;
-
-  /*
   @notice Returns the resource at the id.
   @dev Exact struct data types are left to the implementer
   @param _resourceId the id of the resource to return
@@ -383,6 +348,8 @@ Resources are stored on a token as an array of bytes16 identifiers.
 In order to reduce redundant on-chain string storage, multi resource tokens store resources by reference via a secondary storage contract. A resource entry on the storage contract is stored via a bytes8 mapping to resource data. A bytes16 identifier is then computed from the hash of (address storageContractAddress, bytes8 resourceId). Both address and bytes8 identifier are then stored on the local contract as a bytes16 mapping to this reference.
 
 A resource array is an array of these bytes16 references.
+
+Resources are stored on a separate contract and referred to by reference for two reasons: generic reference storage on the multiresource token contract for variable resource struct types, and to reduce redundant storage on the multiresource token contract. With this structure, a generic resource can be added once on the storage contract, and a reference to it can be added to it once on the token contract. Implementers can then use string concatenation to procedurally generate a link to a content-addressed archive based on the base SRC in the resource and the token ID. Storing the resource on a new token will only take 16 bytes of storage in the resource array per token for repeated / tokenID dependent resources.
 
 This structure ensures that for tokens whose source differs only via their tokenId, URIs may still be derived programmatically through concatenation.
 

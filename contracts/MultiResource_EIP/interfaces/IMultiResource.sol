@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import "./IMultiResource.sol";
 import "./IMultiResourceReceiver.sol";
 import "./IResourceStorage.sol";
 import "./IERC721.sol";
@@ -18,7 +17,6 @@ interface IMultiResource is IERC721 {
 
   event ResourceAccepted(uint256 indexed tokenId, bytes16 localResourceId);
 
-  //Emits bytes16(0) as localResourceId in the event all resources are deleted
   event ResourceRejected(uint256 indexed tokenId, bytes16 localResourceId);
 
   event ResourcePrioritySet(uint256 indexed tokenId);
@@ -26,13 +24,6 @@ interface IMultiResource is IERC721 {
   event ResourceOverwriteProposed(uint256 indexed tokenId, bytes16 localResourceId, bytes16 overwrites);
 
   event ResourceOverwritten(uint256 indexed tokenId, bytes16 overwritten);
-
-  function addResourceToToken(
-      uint256 _tokenId,
-      address _resourceAddress,
-      bytes8 _resourceId,
-      bytes16 _overwrites
-  ) external;
 
   function acceptResource(uint256 _tokenId, uint256 index) external;
 
